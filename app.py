@@ -21,7 +21,7 @@ for package in nltk_packages:
     nltk.download(package, quiet=True)
 
 # ----------------- Streamlit Page Config -----------------
-st.set_page_config(page_title="ReviewsLab - Amazon Reviews Analyzer", layout="wide")
+st.set_page_config(page_title="ReviewsLab", layout="wide")
 
 # ----------------- Load Models (Cached) -----------------
 @st.cache_data
