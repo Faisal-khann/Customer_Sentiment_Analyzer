@@ -189,110 +189,184 @@ with tabs[0]:
 # ----------------- Tab 2: Manual Review -----------------
 with tabs[1]:
     st.markdown('<h2 id="manual-review">Manual Review</h2>', unsafe_allow_html=True)
+    
+    # --- User Input ---
     review_input = st.text_area("Enter review text:")
+
     if st.button("Analyze Review", key="manual"):
         if review_input.strip() == "":
             st.warning("Please enter a review.")
         else:
+            # --- Preprocess and vectorize ---
             tokens = preprocess_text(review_input)
-            vec = weighted_vector(tokens, w2v_model, tfidf).reshape(1,-1)
+            vec = weighted_vector(tokens, w2v_model, tfidf).reshape(1, -1)
+            
+            # --- Sentiment Prediction ---
             pred = model.predict(vec)[0]
-            sentiment = "Positive 😊" if pred==1 else "Negative 😞"
+            sentiment = "Positive 😊" if pred == 1 else "Negative 😞"
             st.markdown(f"<h3>Sentiment: {sentiment}</h3>", unsafe_allow_html=True)
 
-            # Save to DB
+            # --- Prediction Confidence ---
+            if hasattr(model, "predict_proba"):
+                prob = model.predict_proba(vec)[0]
+                st.subheader("Prediction Confidence")
+                st.write(f"Positive: {prob[1]*100:.1f}%, Negative: {prob[0]*100:.1f}%")
+
+            # --- Save to DB ---
             c.execute("INSERT INTO reviews (review_text, sentiment) VALUES (?,?)", (review_input, sentiment))
             conn.commit()
 
-# ----------------- Tab 3: CSV Upload -----------------
+            # --- Word Cloud ---
+            if tokens:
+                wordcloud = WordCloud(width=400, height=200, background_color="white").generate(" ".join(tokens))
+                st.subheader("Word Cloud of Key Terms")
+                st.image(wordcloud.to_array(), use_column_width=True)
+
+            # --- Tokens Display ---
+            st.subheader("Tokens Considered by Model")
+            st.write(tokens)
+
+            # --- Feature Request Detection ---
+            st.subheader("💡 Feature Request Detection")
+            feature_phrases = [
+                "wish it had", "would be better if", "should have",
+                "needs to", "could improve", "would like",
+                "it lacks", "it doesn’t have", "missing", "could be added"
+            ]
+            detected_phrases = [p for p in feature_phrases if p in review_input.lower()]
+            if detected_phrases:
+                st.success("Potential feature requests detected:")
+                st.write(", ".join(detected_phrases))
+            else:
+                st.info("No obvious feature request phrases detected.")
+
+            # --- Recent Manual Reviews ---
+            st.subheader("Recent Manual Reviews")
+            c.execute("SELECT review_text, sentiment, timestamp FROM reviews ORDER BY id DESC LIMIT 5")
+            rows = c.fetchall()
+            if rows:
+                for txt, sent, ts in rows:
+                    color = "#10b981" if "Positive" in sent else "#ef4444"
+                    st.markdown(
+                        f"<div style='border-left:5px solid {color};padding:10px;margin:5px 0;'>"
+                        f"{sent} ({ts})<br>{txt}</div>", unsafe_allow_html=True
+                    )
+            else:
+                st.info("No manual reviews yet.")
+
+            # --- Optional: Download Result ---
+            df_result = pd.DataFrame([[review_input, sentiment]], columns=["Review", "Sentiment"])
+            st.download_button(
+                "Download Result as CSV", 
+                df_result.to_csv(index=False), 
+                "review_result.csv"
+            )
+
 # ----------------- Tab 3: CSV Upload -----------------
 with tabs[2]:
     st.markdown('<h2 id="csv-upload">CSV Upload</h2>', unsafe_allow_html=True)
     uploaded_file = st.file_uploader("Upload CSV with reviews", type=["csv"])
-    
+
     if uploaded_file:
         try:
             df_csv = pd.read_csv(uploaded_file, quotechar='"', on_bad_lines='skip')
             st.write("Preview of your CSV:")
             st.dataframe(df_csv.head())
 
-            # --- Row selection for faster processing ---
+            # --- Row selection ---
             max_rows = len(df_csv)
-            slice_option = st.selectbox(
-                "Select which part of the CSV to analyze",
-                ["Top rows", "Bottom rows"]
-            )
-            n_rows = st.number_input(
-                "Enter number of rows to analyze",
-                min_value=1,
-                max_value=max_rows,
-                value=min(1000, max_rows),
-                step=1
-            )
-
-            # Slice dataframe based on selection
-            if slice_option == "Top rows":
-                df_csv_slice = df_csv.head(n_rows)
-            else:  # Bottom rows
-                df_csv_slice = df_csv.tail(n_rows)
+            slice_option = st.selectbox("Select which part of the CSV to analyze", ["Top rows", "Bottom rows"])
+            n_rows = st.number_input("Enter number of rows to analyze", 1, max_rows, min(1000, max_rows))
+            df_csv = df_csv.head(n_rows) if slice_option == "Top rows" else df_csv.tail(n_rows)
 
             # --- Column selection ---
-            review_col = st.selectbox("Select the column containing reviews", df_csv.columns.tolist())
-            product_col = st.selectbox(
-                "Select the column containing product names (for sentiment bar chart)", 
-                df_csv.columns.tolist()+[None]
-            )
+            review_col = st.selectbox("Select review column", df_csv.columns)
+            product_col = st.selectbox("Select product column (optional)", [None] + df_csv.columns.tolist())
+            date_col = st.selectbox("Select date column (optional for trend tracking)", [None] + df_csv.columns.tolist())
 
-            # --- Analyze CSV ---
             if st.button("Analyze CSV"):
-                if review_col.strip() == "":
+                if not review_col:
                     st.warning("Please select a valid review column.")
                 else:
-                    with st.spinner(f"Analyzing {len(df_csv_slice)} rows..."):
-                        # Preprocess reviews
+                    with st.spinner(f"Analyzing {len(df_csv)} rows..."):
+                        progress_bar = st.progress(0)  # create progress bar
                         tokens_list = []
-                        progress = st.progress(0)
-                        total = len(df_csv_slice)
-                        for i, review in enumerate(df_csv_slice[review_col]):
-                            tokens_list.append(preprocess_text(review))
-                            progress.progress((i+1)/total)
-                        df_csv_slice['tokens'] = tokens_list
-
-                        # Batch vectorization & prediction
-                        vectors = np.vstack([weighted_vector(t, w2v_model, tfidf) for t in df_csv_slice['tokens']])
+                        
+                        # --- Text Preprocessing ---
+                        for i, r in enumerate(df_csv[review_col]):
+                            tokens_list.append(preprocess_text(str(r)))
+                            
+                            # update progress
+                            progress_bar.progress(int((i+1)/len(df_csv) * 100))
+                        
+                        df_csv['tokens'] = tokens_list
+                        
+                        # --- Sentiment Prediction ---
+                        vectors = np.vstack([weighted_vector(t, w2v_model, tfidf) for t in df_csv['tokens']])
                         preds = model.predict(vectors)
-                        df_csv_slice['sentiment'] = np.where(preds==1, 'Positive', 'Negative')
+                        df_csv['sentiment'] = np.where(preds == 1, 'Positive', 'Negative')
 
-                        # Summary and preview
-                        st.success(
-                            f"CSV Analysis Complete: {(preds==1).mean()*100:.1f}% Positive, {(preds==0).mean()*100:.1f}% Negative"
-                        )
-                        st.dataframe(df_csv_slice[[review_col,'sentiment']].head(10))
+                        pos_pct = (preds == 1).mean() * 100
+                        st.success(f"Analysis Complete: {pos_pct:.1f}% Positive, {100-pos_pct:.1f}% Negative")
+                        st.dataframe(df_csv[[review_col, 'sentiment']].head(10))
 
-                        # --- Product-level bar chart with percentage tooltips ---
-                        if product_col and product_col in df_csv_slice.columns:
+                        # --- Product Sentiment Chart ---
+                        if product_col and product_col in df_csv.columns:
                             st.subheader("Product-level Sentiment Bar Chart")
-                            # Count reviews per product and sentiment
-                            sentiment_counts = df_csv_slice.groupby([product_col, 'sentiment']).size().reset_index(name='count')
-                            # Total reviews per product
-                            total_counts = df_csv_slice.groupby(product_col).size().reset_index(name='total')
-                            # Merge to calculate percentage
-                            sentiment_counts = sentiment_counts.merge(total_counts, on=product_col)
-                            sentiment_counts['pct'] = (sentiment_counts['count'] / sentiment_counts['total'] * 100).round(1)
+                            sentiment_counts = (
+                                df_csv.groupby([product_col, 'sentiment'])
+                                .size().reset_index(name='count')
+                            )
+                            sentiment_counts['pct'] = (
+                                sentiment_counts.groupby(product_col)['count']
+                                .transform(lambda x: 100 * x / x.sum())
+                            ).round(1)
 
-                            import altair as alt
+                            import altair as alt 
                             chart = alt.Chart(sentiment_counts).mark_bar().encode(
-                                x=alt.X('count:Q', axis=alt.Axis(title='Review Count')),
+                                x='count:Q',
                                 y=alt.Y(f'{product_col}:N', sort='-x'),
                                 color='sentiment:N',
-                                tooltip=[
-                                    alt.Tooltip(product_col, title="Product"),
-                                    alt.Tooltip('sentiment', title="Sentiment"),
-                                    alt.Tooltip('count', title='Review Count'),
-                                    alt.Tooltip('pct', title='Percentage', format=".1f")
-                                ]
+                                tooltip=[product_col, 'sentiment', 'count', alt.Tooltip('pct', format='.1f')]
                             )
                             st.altair_chart(chart, use_container_width=True)
+
+                        # --- Sentiment Trend Chart ---
+                        if date_col and date_col in df_csv.columns:
+                            try:
+                                df_csv[date_col] = pd.to_datetime(df_csv[date_col], errors='coerce')
+                                trend_df = (
+                                    df_csv.groupby(pd.Grouper(key=date_col, freq='M'))['sentiment']
+                                    .apply(lambda x: (x == 'Positive').mean() * 100)
+                                    .reset_index(name='positive_pct')
+                                )
+                                trend_chart = alt.Chart(trend_df).mark_line(point=True).encode(
+                                    x=alt.X(f'{date_col}:T', title='Month'),
+                                    y=alt.Y('positive_pct:Q', title='Positive Sentiment (%)'),
+                                    tooltip=[f'{date_col}:T', alt.Tooltip('positive_pct:Q', format='.1f')]
+                                ).properties(height=300)
+                                st.subheader("Sentiment Trend Over Time")
+                                st.altair_chart(trend_chart, use_container_width=True)
+                            except Exception as e:
+                                st.warning(f"Could not generate trend chart: {e}")
+                        else:
+                            st.info("Select a date column to enable sentiment trend tracking.")
+
+                        # --- Feature Request Detection ---
+                        st.subheader("Feature Request Detection")
+                        feature_phrases = [
+                            "wish it had", "would be better if", "should have", "needs to",
+                            "could improve", "would like", "it lacks", "it doesn’t have",
+                            "missing", "could be added"
+                        ]
+                        df_feature_req = df_csv[df_csv[review_col].str.lower().apply(
+                            lambda t: any(p in t for p in feature_phrases)
+                        )]
+                        if not df_feature_req.empty:
+                            st.success(f"Detected {len(df_feature_req)} potential feature request(s).")
+                            st.dataframe(df_feature_req[[review_col]].head(10))
+                        else:
+                            st.info("No clear feature request patterns found.")
 
         except Exception as e:
             st.error(f"Error reading CSV: {e}")
