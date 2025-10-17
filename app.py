@@ -11,13 +11,14 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import sqlite3
 import time
-from PIL import Image
+import nltk
+
 
 # ----------------- Load NLTK resources -----------------
-import nltk
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
+# Download NLTK resources quietly (only if missing)
+nltk_packages = ['punkt', 'stopwords', 'wordnet']
+for package in nltk_packages:
+    nltk.download(package, quiet=True)
 
 # ----------------- Streamlit Page Config -----------------
 st.set_page_config(page_title="ReviewsLab - Amazon Reviews Analyzer", layout="wide")
