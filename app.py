@@ -11,6 +11,7 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import sqlite3
 import time
+from PIL import Image
 
 # ----------------- Load NLTK resources -----------------
 import nltk
@@ -53,6 +54,7 @@ def weighted_vector(tokens, w2v_model, tfidf_vectorizer):
         return np.zeros(w2v_model.vector_size)
     return np.average(vectors, axis=0, weights=weights)
 
+
 # ----------------- SQLite DB for history -----------------
 conn = sqlite3.connect("reviews.db", check_same_thread=False)
 c = conn.cursor()
@@ -89,6 +91,7 @@ html, body, [class*="css"]  {
   border-radius:6px;
   margin-bottom:18px;
 }
+            
 .logo { font-weight:700; font-size:20px; color:#e11d48; }
 .navlinks a {
   text-decoration: none;
@@ -133,9 +136,11 @@ footer[data-testid="stFooter"] {visibility: hidden;}
 
 # ----------------- Top Nav -----------------
 st.markdown("""
-<div class="top-nav">
-  <div class="logo">ReviewsLab</div>
-  <div class="navlinks">
+<div class="top-nav" style="display:flex; align-items:center; justify-content:space-between; padding:10px; background-color:#f8f9fa;">
+  <div class="logo" style="font-size:24px; font-weight:bold; color:#333;">
+    ReviewsLab
+  </div>
+  <div class="navlinks" style="display:flex; gap:20px;">
     <a href="#asin-analysis">ASIN Analysis</a>
     <a href="#manual-review">Manual Review</a>
     <a href="#csv-upload">CSV Upload</a>
@@ -155,36 +160,79 @@ st.markdown("""
 # ----------------- Tabs -----------------
 tabs = st.tabs(["ASIN Analysis", "Manual Review", "CSV Upload", "History"])
 
-# ----------------- Tab 1: ASIN Analysis -----------------
+# --- Load reviews once ---
+@st.cache_data
+def load_reviews():
+    df = pd.read_csv("all_reviews.csv")  # ensure this has 'asin', 'review_text', and 'rating' columns
+    return df
+
+df = load_reviews()
+
+import re
+
+# Function to clean review text
+def clean_text(text):
+    text = re.sub(r'<.*?>', '', text) # Remove HTML tags
+    text = re.sub(r'[^a-zA-Z0-9.,!?\'" ]+', ' ', text) # Remove non-alphanumeric characters except basic punctuation
+    text = re.sub(r'\s+', ' ', text).strip()  # Replace multiple spaces with single space
+    return text
+
+# Get unique ASINs from your dataset
+available_asins = df['asin'].unique().tolist()
+
 with tabs[0]:
     st.markdown('<h2 id="asin-analysis">ASIN Analysis</h2>', unsafe_allow_html=True)
-    asin_input = st.text_input("Enter Amazon ASIN (e.g. B08XYZ123)")
-    if st.button("Analyze ASIN", key="asin"):
-        if asin_input.strip() == "":
-            st.warning("Please enter a valid ASIN.")
+    
+    # Dropdown for ASIN selection
+    asin_selected = st.selectbox("Select Amazon ASIN", available_asins)
+    
+    if st.button("Analyze ASIN", key="asin") and asin_selected:
+        st.info(f"Processing reviews for ASIN: {asin_selected}...")
+        time.sleep(1)
+        
+        # --- Filter reviews for the ASIN ---
+        df_asin = df[df['asin'] == asin_selected].copy()
+        
+        if df_asin.empty:
+            st.warning("No reviews found for this ASIN.")
         else:
-            st.info("Processing reviews...")
-            time.sleep(1)  # simulate loading
-            # Load all reviews CSV
-            df = pd.read_csv("all_reviews.csv")  # replace with your file
-            df_asin = df[df['asin']==asin_input]
-            if df_asin.empty:
-                st.warning("No reviews found for this ASIN.")
-            else:
-                df_asin['tokens'] = df_asin['review_text'].apply(preprocess_text)
-                df_asin['vec'] = df_asin['tokens'].apply(lambda x: weighted_vector(x, w2v_model, tfidf))
-                df_asin['pred'] = df_asin['vec'].apply(lambda v: model.predict(v.reshape(1,-1))[0])
-                pos_pct = (df_asin['pred']==1).mean()*100
-                st.success(f"Sentiment Analysis Complete: {pos_pct:.1f}% Positive, {100-pos_pct:.1f}% Negative")
+            # --- Preprocess and Predict Sentiment ---
+            df_asin['tokens'] = df_asin['review_text'].apply(preprocess_text)
+            df_asin['vec'] = df_asin['tokens'].apply(lambda x: weighted_vector(x, w2v_model, tfidf))
+            df_asin['pred'] = df_asin['vec'].apply(lambda v: model.predict(v.reshape(1, -1))[0])
+            
+            pos_pct = (df_asin['pred'] == 1).mean() * 100
+            st.success(f"Sentiment Analysis Complete: {pos_pct:.1f}% Positive, {100 - pos_pct:.1f}% Negative")
+            
+            # --- Ratings Distribution Chart ---
+            if 'rating' in df_asin.columns:
+                st.bar_chart(df_asin['rating'].value_counts().sort_index())
+            
+            # --- Show Product Info if available ---
+            product_cols = ['product_title', 'category', 'price']
+            if all(col in df_asin.columns for col in product_cols):
+                st.subheader("Product Information")
+                product_info = df_asin[product_cols].iloc[0]
+                for col in product_cols:
+                    st.write(f"**{col.replace('_',' ').title()}:** {product_info[col]}")
+            
+            # --- Review Summaries ---
+            st.subheader("Review Summary")
+            
+            # Positive reviews
+            pos_reviews = df_asin[df_asin['pred'] == 1]['review_text']
+            if not pos_reviews.empty:
+                st.markdown("**Positive Reviews:**")
+                for rev in pos_reviews.sample(min(5, len(pos_reviews))):
+                    st.write(f"- {clean_text(rev)}")
+            
+            # Negative reviews
+            neg_reviews = df_asin[df_asin['pred'] == 0]['review_text']
+            if not neg_reviews.empty:
+                st.markdown("**Negative Reviews:**")
+                for rev in neg_reviews.sample(min(5, len(neg_reviews))):
+                    st.write(f"- {clean_text(rev)}")
 
-                # Ratings distribution chart
-                if 'rating' in df_asin.columns:
-                    st.bar_chart(df_asin['rating'].value_counts().sort_index())
-
-                # Word cloud for positive reviews
-                text = " ".join(df_asin[df_asin['pred']==1]['review_text'])
-                wordcloud = WordCloud(width=800, height=400).generate(text)
-                st.image(wordcloud.to_array(), use_column_width=True)
 
 # ----------------- Tab 2: Manual Review -----------------
 with tabs[1]:
@@ -404,11 +452,49 @@ for i, (title, desc) in enumerate(feature_texts):
     col = cols[i % 3]
     col.markdown(f'<div class="feature-card"><h3>{title}</h3><p>{desc}</p></div>', unsafe_allow_html=True)
 
+# ----------------- Connect With Me Section -----------------
+st.markdown(" ")
+# st.markdown('<h2 id="connect-with-me">Connect With Me</h2>', unsafe_allow_html=True)
+
+st.markdown("""
+<div style="text-align:center; padding:20px; border: 2px solid #f3f4f6; border-radius:12px; margin-bottom:40px;">
+    <h3>Hello! 👋 I'm Faisal Khan</h3>
+    <p>I'm passionate about data, machine learning, and building tools that turn insights into action. Connect with me!</p>
+    <div style="display:flex; justify-content:center; gap:15px; margin-top:20px;">
+        <a href="https://personal-portfolio-alpha-lake.vercel.app/" target="_blank" style="
+            text-decoration:none;
+            background-color:#e11d48;
+            color:white;
+            padding:10px 20px;
+            border-radius:8px;
+            font-weight:bold;
+        ">Portfolio</a>
+        <a href="https://www.linkedin.com/in/faisal-khan23" target="_blank" style="
+            text-decoration:none;
+            background-color:#0e76a8;
+            color:white;
+            padding:10px 20px;
+            border-radius:8px;
+            font-weight:bold;
+        ">LinkedIn</a>
+        <a href="https://github.com/Faisal-khann" target="_blank" style="
+            text-decoration:none;
+            background-color:#333;
+            color:white;
+            padding:10px 20px;
+            border-radius:8px;
+            font-weight:bold;
+        ">GitHub</a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
 # ----------------- Footer -----------------
 st.markdown("""
 <footer style="text-align:center; padding:28px 20px; font-size:13px; color:#6b7280; border-top:1px solid #f3f4f6; margin-top:34px;">
   © 2025 ReviewsLab — Built for product-led teams<br>
   Made with ❤️ using <b>Streamlit</b> & <b>Machine Learning</b><br>
-  Developed by <b>Faisal Khan</b> | <a href="https://github.com/yourusername" target="_blank">GitHub</a>
+  Developed by <b>Faisal Khan</b> | <a href="https://github.com/Faisal-khann" target="_blank">GitHub</a>
 </footer>
 """, unsafe_allow_html=True)
