@@ -15,10 +15,10 @@ import nltk
 
 
 # ----------------- Load NLTK resources -----------------
-# Download NLTK resources quietly (only if missing)
-nltk_packages = ['punkt', 'stopwords', 'wordnet']
-for package in nltk_packages:
-    nltk.download(package, quiet=True)
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
+
 
 # ----------------- Streamlit Page Config -----------------
 st.set_page_config(page_title="ReviewsLab", layout="wide")
