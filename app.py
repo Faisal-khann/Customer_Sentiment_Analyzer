@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,11 +14,19 @@ import sqlite3
 import time
 import nltk
 
+# ===============================
+# NLTK Download Setup (Cached)
+# ===============================
 
-# ----------------- Load NLTK resources -----------------
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
+# Set a local NLTK data directory to cache downloads in Streamlit Cloud
+import os
+nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
+os.environ["NLTK_DATA"] = nltk_data_dir
+
+# Download only the required NLTK packages quietly
+nltk_packages = ['punkt', 'stopwords', 'wordnet']
+for package in nltk_packages:
+    nltk.download(package, download_dir=nltk_data_dir, quiet=True)
 
 
 # ----------------- Streamlit Page Config -----------------
