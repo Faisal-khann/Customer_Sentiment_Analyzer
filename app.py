@@ -106,7 +106,7 @@ html, body, [class*="css"]  {
   border-radius:6px;
   margin-bottom:18px;
 }
-            
+
 .logo { font-weight:700; font-size:20px; color:#e11d48; }
 .navlinks a {
   text-decoration: none;
@@ -137,18 +137,40 @@ html, body, [class*="css"]  {
   justify-content: flex-start;
   transition: transform 0.3s, box-shadow 0.3s;
   height: 100%;
+  color: #111827; /* Default text color for light mode */
 }
 .feature-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 10px 20px rgba(0,0,0,0.12);
 }
 
+/* Dark mode styles */
+@media (prefers-color-scheme: dark) {
+  html, body, [class*="css"] {
+    background: #0f172a;
+    color: #f9fafb;
+  }
+
+  .top-nav {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  }
+
+  .feature-card {
+    background: #1e293b;
+    border-color: #334155;
+    color: #ffffff; /* Make feature text white in dark mode */
+  }
+
+  .logo {
+    color: #f43f5e;
+  }
+}
+  
 /* Hide Streamlit default menu/footer */
 #MainMenu {visibility: hidden;}
 footer[data-testid="stFooter"] {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
-
 # ----------------- Top Nav -----------------
 st.markdown("""
 <div class="top-nav" style="display:flex; align-items:center; justify-content:space-between; padding:10px; background-color:#f8f9fa;">
