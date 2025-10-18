@@ -13,13 +13,13 @@ import matplotlib.pyplot as plt
 import sqlite3
 import time
 import nltk
+import re
+import os
+
 
 # ===============================
 # NLTK Download Setup (Cached)
 # ===============================
-import nltk
-import os
-
 nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
 os.environ["NLTK_DATA"] = nltk_data_dir
 
@@ -35,7 +35,7 @@ for resource in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
 
 
 # ----------------- Streamlit Page Config -----------------
-st.set_page_config(page_title="ReviewsLab", layout="wide")
+st.set_page_config(page_title="Reviews Lab", layout="wide")
 
 # ----------------- Load Models (Cached) -----------------
 @st.cache_data
@@ -83,131 +83,9 @@ CREATE TABLE IF NOT EXISTS reviews (
 """)
 conn.commit()
 
-# ----------------- Custom CSS -----------------
-st.markdown("""
-<style>
-html, body, [class*="css"]  {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-  background: #fff;
-  color: #111827;
-}
-
-/* Top navigation */
-.top-nav{
-  background: linear-gradient(180deg, #e0f0ff 0%, #ffffff 100%);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  position: sticky;
-  top: 0;
-  z-index: 999;
-  padding: 12px 40px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  border-radius:6px;
-  margin-bottom:18px;
-}
-
-.logo { font-weight:700; font-size:20px; color:#e11d48; }
-.navlinks a {
-  text-decoration: none;
-  color: #fff;
-  background: #e11d48;
-  padding: 8px 18px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.12);
-  transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
-}
-.navlinks a:hover {
-  background: #be123c;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.16);
-}
-
-/* Feature cards grid container */
-.feature-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  column-gap: 40px; /* horizontal spacing */
-  row-gap: 20px;    /* vertical spacing */
-  justify-items: stretch;
-  align-items: stretch;
-  margin-top: 20px;
-  margin-bottom: 20px;
-}
-
-/* Feature cards */
-.feature-card {
-  background: #fff;
-  border: 2px solid #f3f4f6;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: flex-start;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-  min-height: 220px;
-  color: #111827;
-  box-sizing: border-box;
-  position: relative;  /* prevent overlap bug */
-  z-index: 0;          /* default stacking order */
-}
-
-.feature-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
-  z-index: 5; /* bring hovered card above others */
-}
-
-/* Dark mode styles */
-@media (prefers-color-scheme: dark) {
-  html, body, [class*="css"] {
-    background: #0f172a;
-    color: #f9fafb;
-  }
-
-  .top-nav {
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-  }
-
-  .feature-card {
-    background: #1e293b;
-    border-color: #334155;
-    color: #ffffff;
-  }
-}
-
-/* Responsive behavior: stack cards on smaller screens */
-@media (max-width: 700px) {
-  .feature-grid {
-    grid-template-columns: 1fr; /* single column on small screens */
-  }
-}
-                        
-.logo {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 30px; 
-    font-weight: bold; 
-    font-style: italic;
-    color: #f43f5e;   /* light mode color */
-    letter-spacing: 1px;
-}
-
-/* Dark theme */
-@media (prefers-color-scheme: dark) {
-    .logo {
-        color: white;
-    }
-}
-  
-/* Hide Streamlit default menu/footer */
-#MainMenu {visibility: hidden;}
-footer[data-testid="stFooter"] {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
+# ----------------- Load CSS -----------------
+with open("styles.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # ----------------- Top Nav -----------------
 st.markdown("""
@@ -235,6 +113,8 @@ st.markdown("""
 # ----------------- Tabs -----------------
 tabs = st.tabs(["ASIN Analysis", "Manual Review", "CSV Upload", "History"])
 
+# ----------------- Tab 1: ASIN Review -----------------
+
 # --- Load reviews once ---
 @st.cache_data
 def load_reviews():
@@ -243,9 +123,6 @@ def load_reviews():
 
 df = load_reviews()
 
-import re
-
-# Function to clean review text
 def clean_text(text):
     text = re.sub(r'<.*?>', '', text) # Remove HTML tags
     text = re.sub(r'[^a-zA-Z0-9.,!?\'" ]+', ' ', text) # Remove non-alphanumeric characters except basic punctuation
@@ -524,13 +401,18 @@ feature_texts = [
     ("Auto Reports & Export", "Generate shareable reports in PDF or CSV for quick insights."),
 ]
 
-for i in range(0, len(feature_texts), 3):
-    # Create a row of 3 columns
-    cols = st.columns(3)
-    for j, (title, desc) in enumerate(feature_texts[i:i+3]):
-        cols[j].markdown(f'<div class="feature-card"><h3>{title}</h3><p>{desc}</p></div>', unsafe_allow_html=True)
-    # Add space after each row
-    st.markdown("<br>", unsafe_allow_html=True)
+# Render feature cards using columns grid
+cols_per_row = 3  # Desktop layout
+for i in range(0, len(feature_texts), cols_per_row):
+    row_cols = st.columns(min(cols_per_row, len(feature_texts) - i))
+    for col, (title, desc) in zip(row_cols, feature_texts[i:i+cols_per_row]):
+        col.markdown(f'''
+        <div class="feature-card">
+            <h3>{title}</h3>
+            <p>{desc}</p>
+        </div>
+        ''', unsafe_allow_html=True)
+
 
 # ----------------- Connect With Me Section -----------------
 st.markdown(" ")
