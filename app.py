@@ -181,19 +181,24 @@ with tabs[0]:
 
 # ----------------- Tab 2: Manual Review -----------------
 with tabs[1]:
-    st.markdown('<h2 id="manual-review">Manual Review</h2>', unsafe_allow_html=True)
-    
+    st.markdown('<h2>Manual Review</h2>', unsafe_allow_html=True)
+
     # --- User Input ---
     review_input = st.text_area("Enter review text:")
 
+    # Initialize session state to prevent duplicate DB insertions
+    if "review_saved" not in st.session_state:
+        st.session_state.review_saved = False
+        st.session_state.last_review = ""
+
     if st.button("Analyze Review", key="manual"):
-        if review_input.strip() == "":
+        if not review_input.strip():
             st.warning("Please enter a review.")
         else:
             # --- Preprocess and vectorize ---
             tokens = preprocess_text(review_input)
             vec = weighted_vector(tokens, w2v_model, tfidf).reshape(1, -1)
-            
+
             # --- Sentiment Prediction ---
             pred = model.predict(vec)[0]
             sentiment = "Positive 😊" if pred == 1 else "Negative 😞"
@@ -205,22 +210,20 @@ with tabs[1]:
                 st.subheader("Prediction Confidence")
                 st.write(f"Positive: {prob[1]*100:.1f}%, Negative: {prob[0]*100:.1f}%")
 
-            # --- Save to DB ---
-            c.execute("INSERT INTO reviews (review_text, sentiment) VALUES (?,?)", (review_input, sentiment))
-            conn.commit()
+            # --- Save to DB only once per unique review ---
+            if not st.session_state.review_saved or st.session_state.last_review != review_input:
+                c.execute("INSERT INTO reviews (review_text, sentiment) VALUES (?, ?)", (review_input, sentiment))
+                conn.commit()
+                st.session_state.review_saved = True
+                st.session_state.last_review = review_input
 
-            # --- Word Cloud ---
-            if tokens:
-                wordcloud = WordCloud(width=400, height=200, background_color="white").generate(" ".join(tokens))
-                st.subheader("Word Cloud of Key Terms")
-                st.image(wordcloud.to_array(), use_column_width=True)
 
             # --- Tokens Display ---
             st.subheader("Tokens Considered by Model")
             st.write(tokens)
 
             # --- Feature Request Detection ---
-            st.subheader("💡 Feature Request Detection")
+            st.subheader(" Feature Request Detection")
             feature_phrases = [
                 "wish it had", "would be better if", "should have",
                 "needs to", "could improve", "would like",
@@ -235,8 +238,7 @@ with tabs[1]:
 
             # --- Recent Manual Reviews ---
             st.subheader("Recent Manual Reviews")
-            c.execute("SELECT review_text, sentiment, timestamp FROM reviews ORDER BY id DESC LIMIT 5")
-            rows = c.fetchall()
+            rows = c.execute("SELECT review_text, sentiment, timestamp FROM reviews ORDER BY id DESC LIMIT 5").fetchall()
             if rows:
                 for txt, sent, ts in rows:
                     color = "#10b981" if "Positive" in sent else "#ef4444"
@@ -250,10 +252,11 @@ with tabs[1]:
             # --- Optional: Download Result ---
             df_result = pd.DataFrame([[review_input, sentiment]], columns=["Review", "Sentiment"])
             st.download_button(
-                "Download Result as CSV", 
-                df_result.to_csv(index=False), 
+                "Download Result as CSV",
+                df_result.to_csv(index=False),
                 "review_result.csv"
             )
+
 
 # ----------------- Tab 3: CSV Upload -----------------
 with tabs[2]:
