@@ -17,16 +17,21 @@ import nltk
 # ===============================
 # NLTK Download Setup (Cached)
 # ===============================
-
-# Set a local NLTK data directory to cache downloads in Streamlit Cloud
+import nltk
 import os
+
 nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
 os.environ["NLTK_DATA"] = nltk_data_dir
 
-# Download only the required NLTK packages quietly
-nltk_packages = ['punkt', 'stopwords', 'wordnet']
-for package in nltk_packages:
-    nltk.download(package, download_dir=nltk_data_dir, quiet=True)
+# Ensure the directory exists
+os.makedirs(nltk_data_dir, exist_ok=True)
+
+# Safely ensure resources are available
+for resource in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
+    try:
+        nltk.data.find(resource)
+    except LookupError:
+        nltk.download(resource, download_dir=nltk_data_dir, quiet=True)
 
 
 # ----------------- Streamlit Page Config -----------------
