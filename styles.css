@@ -96,7 +96,6 @@ html, body, [class*="css"]  {
 @media (max-width: 700px) {
   .feature-grid {
     grid-template-columns: 1fr; /* single column on small screens */
-    row-gap: 20px;
   }
 }
                         
