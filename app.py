@@ -171,6 +171,7 @@ html, body, [class*="css"]  {
 footer[data-testid="stFooter"] {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
+
 # ----------------- Top Nav -----------------
 st.markdown("""
 <div class="top-nav" style="display:flex; align-items:center; justify-content:space-between; padding:10px; background-color:#f8f9fa;">
