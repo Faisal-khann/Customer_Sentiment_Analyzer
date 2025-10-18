@@ -1,38 +1,34 @@
 
+import os
+import time
+import re
+import sqlite3
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 from gensim.models import Word2Vec
-import re
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
-import sqlite3
-import time
 import nltk
-import re
-import os
-
+import altair as alt
 
 # ===============================
-# NLTK Download Setup (Cached)
+# NLTK Setup
 # ===============================
 nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
 os.environ["NLTK_DATA"] = nltk_data_dir
-
-# Ensure the directory exists
 os.makedirs(nltk_data_dir, exist_ok=True)
 
-# Safely ensure resources are available
-for resource in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
+for resource in ["punkt", "stopwords", "wordnet"]:
     try:
         nltk.data.find(resource)
     except LookupError:
         nltk.download(resource, download_dir=nltk_data_dir, quiet=True)
-
 
 # ----------------- Streamlit Page Config -----------------
 st.set_page_config(page_title="Reviews Lab", layout="wide")
@@ -55,8 +51,7 @@ def preprocess_text(text):
     text = re.sub(r'<.*?>', ' ', text.lower())
     text = re.sub(r'\d+', '', text)
     tokens = word_tokenize(text)
-    tokens = [lemmatizer.lemmatize(w) for w in tokens if w.isalpha() and w not in stop_words]
-    return tokens
+    return [lemmatizer.lemmatize(w) for w in tokens if w.isalpha() and w not in stop_words]
 
 def weighted_vector(tokens, w2v_model, tfidf_vectorizer):
     word2weight = dict(zip(tfidf_vectorizer.get_feature_names_out(), tfidf_vectorizer.idf_))
@@ -69,6 +64,10 @@ def weighted_vector(tokens, w2v_model, tfidf_vectorizer):
         return np.zeros(w2v_model.vector_size)
     return np.average(vectors, axis=0, weights=weights)
 
+def clean_text(text):
+    text = re.sub(r'<.*?>', '', text)
+    text = re.sub(r'[^a-zA-Z0-9.,!?\'" ]+', ' ', text)
+    return re.sub(r'\s+', ' ', text).strip()
 
 # ----------------- SQLite DB for history -----------------
 conn = sqlite3.connect("reviews.db", check_same_thread=False)
@@ -87,16 +86,9 @@ conn.commit()
 with open("styles.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# ----------------- Top Nav -----------------
-# ---------- Logo ----------
+# ----------------- Top Nav & Hero -----------------
 st.markdown("""
-<div class="top-nav">
-    <div class="logo">ReviewLab</div>
-</div>
-""", unsafe_allow_html=True)
-
-# ----------------- Hero Section -----------------
-st.markdown("""
+<div class="top-nav"><div class="logo">ReviewLab</div></div>
 <div class="hero">
   <h1>Turn Amazon reviews into product intelligence</h1>
   <p>Analyze thousands of reviews in seconds — find trends, sentiment, and opportunities.</p>
@@ -106,54 +98,50 @@ st.markdown("""
 # ----------------- Tabs -----------------
 tabs = st.tabs(["ASIN Analysis", "Manual Review", "CSV Upload", "History"])
 
-# ----------------- Tab 1: ASIN Review -----------------
-
-# --- Load reviews once ---
+# ----------------- Load Reviews -----------------
 @st.cache_data
 def load_reviews():
-    df = pd.read_csv("all_reviews.csv")  # ensure this has 'asin', 'review_text', and 'rating' columns
-    return df
+    return pd.read_csv("all_reviews.csv")  # must have 'asin', 'review_text', 'rating'
 
 df = load_reviews()
-
-def clean_text(text):
-    text = re.sub(r'<.*?>', '', text) # Remove HTML tags
-    text = re.sub(r'[^a-zA-Z0-9.,!?\'" ]+', ' ', text) # Remove non-alphanumeric characters except basic punctuation
-    text = re.sub(r'\s+', ' ', text).strip()  # Replace multiple spaces with single space
-    return text
-
-# Get unique ASINs from your dataset
 available_asins = df['asin'].unique().tolist()
 
+# ----------------- Tab 1: ASIN Review -----------------
 with tabs[0]:
-    st.markdown('<h2 id="asin-analysis">ASIN Analysis</h2>', unsafe_allow_html=True)
-    
-    # Dropdown for ASIN selection
+    # Page title
+    st.markdown('<h2>ASIN Analysis</h2>', unsafe_allow_html=True)
+
+    # ASIN selection
     asin_selected = st.selectbox("Select Amazon ASIN", available_asins)
     
-    if st.button("Analyze ASIN", key="asin") and asin_selected:
+    # Analyze button
+    if st.button("Analyze ASIN") and asin_selected:
         st.info(f"Processing reviews for ASIN: {asin_selected}...")
         time.sleep(1)
         
-        # --- Filter reviews for the ASIN ---
+        # Filter reviews
         df_asin = df[df['asin'] == asin_selected].copy()
-        
         if df_asin.empty:
             st.warning("No reviews found for this ASIN.")
         else:
-            # --- Preprocess and Predict Sentiment ---
+            # Preprocess text
             df_asin['tokens'] = df_asin['review_text'].apply(preprocess_text)
+            
+            # Vectorize
             df_asin['vec'] = df_asin['tokens'].apply(lambda x: weighted_vector(x, w2v_model, tfidf))
+            
+            # Predict sentiment
             df_asin['pred'] = df_asin['vec'].apply(lambda v: model.predict(v.reshape(1, -1))[0])
             
+            # Show sentiment summary
             pos_pct = (df_asin['pred'] == 1).mean() * 100
             st.success(f"Sentiment Analysis Complete: {pos_pct:.1f}% Positive, {100 - pos_pct:.1f}% Negative")
             
-            # --- Ratings Distribution Chart ---
+            # Ratings chart
             if 'rating' in df_asin.columns:
                 st.bar_chart(df_asin['rating'].value_counts().sort_index())
             
-            # --- Show Product Info if available ---
+            # Product info
             product_cols = ['product_title', 'category', 'price']
             if all(col in df_asin.columns for col in product_cols):
                 st.subheader("Product Information")
@@ -161,22 +149,14 @@ with tabs[0]:
                 for col in product_cols:
                     st.write(f"**{col.replace('_',' ').title()}:** {product_info[col]}")
             
-            # --- Review Summaries ---
+            # Review summary
             st.subheader("Review Summary")
-            
-            # Positive reviews
-            pos_reviews = df_asin[df_asin['pred'] == 1]['review_text']
-            if not pos_reviews.empty:
-                st.markdown("**Positive Reviews:**")
-                for rev in pos_reviews.sample(min(5, len(pos_reviews))):
-                    st.write(f"- {clean_text(rev)}")
-            
-            # Negative reviews
-            neg_reviews = df_asin[df_asin['pred'] == 0]['review_text']
-            if not neg_reviews.empty:
-                st.markdown("**Negative Reviews:**")
-                for rev in neg_reviews.sample(min(5, len(neg_reviews))):
-                    st.write(f"- {clean_text(rev)}")
+            for label, revs in [("Positive", df_asin[df_asin['pred']==1]['review_text']),
+                                ("Negative", df_asin[df_asin['pred']==0]['review_text'])]:
+                if not revs.empty:
+                    st.markdown(f"**{label} Reviews:**")
+                    for rev in revs.sample(min(5, len(revs))):
+                        st.write(f"- {clean_text(rev)}")
 
 
 # ----------------- Tab 2: Manual Review -----------------
@@ -406,42 +386,17 @@ for i in range(0, len(feature_texts), 3):
     st.markdown("<br>", unsafe_allow_html=True)
 
 # ----------------- Connect With Me Section -----------------
-st.markdown(" ")
-# st.markdown('<h2 id="connect-with-me">Connect With Me</h2>', unsafe_allow_html=True)
-
 st.markdown("""
 <div style="text-align:center; padding:20px; border: 2px solid #f3f4f6; border-radius:12px; margin-bottom:40px;">
     <h3>Hello! 👋 I'm Faisal Khan</h3>
     <p>I'm passionate about data, machine learning, and building tools that turn insights into action. Connect with me!</p>
     <div style="display:flex; justify-content:center; gap:15px; margin-top:20px;">
-        <a href="https://personal-portfolio-alpha-lake.vercel.app/" target="_blank" style="
-            text-decoration:none;
-            background-color:#e11d48;
-            color:white;
-            padding:10px 20px;
-            border-radius:8px;
-            font-weight:bold;
-        ">Portfolio</a>
-        <a href="https://www.linkedin.com/in/faisal-khan23" target="_blank" style="
-            text-decoration:none;
-            background-color:#0e76a8;
-            color:white;
-            padding:10px 20px;
-            border-radius:8px;
-            font-weight:bold;
-        ">LinkedIn</a>
-        <a href="https://github.com/Faisal-khann" target="_blank" style="
-            text-decoration:none;
-            background-color:#333;
-            color:white;
-            padding:10px 20px;
-            border-radius:8px;
-            font-weight:bold;
-        ">GitHub</a>
+        <a href="https://personal-portfolio-alpha-lake.vercel.app/" target="_blank" style="text-decoration:none; background-color:#e11d48; color:white; padding:10px 20px; border-radius:8px; font-weight:bold;">Portfolio</a>
+        <a href="https://www.linkedin.com/in/faisal-khan23" target="_blank" style="text-decoration:none; background-color:#0e76a8; color:white; padding:10px 20px; border-radius:8px; font-weight:bold;">LinkedIn</a>
+        <a href="https://github.com/Faisal-khann" target="_blank" style="text-decoration:none; background-color:#333; color:white; padding:10px 20px; border-radius:8px; font-weight:bold;">GitHub</a>
     </div>
 </div>
 """, unsafe_allow_html=True)
-
 
 # ----------------- Footer -----------------
 st.markdown("""
