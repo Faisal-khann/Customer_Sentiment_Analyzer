@@ -1,9 +1,9 @@
-streamlit==1.41.1
-pandas==2.3.3
+streamlit
+pandas
 numpy==1.26.4
-joblib==1.4.2
-gensim==4.3.3
-nltk==3.9.1
-wordcloud==1.9.4
-matplotlib==3.9.1
-scikit-learn==1.5.2
+joblib
+gensim
+nltk
+wordcloud
+matplotlib
+scikit-learn
