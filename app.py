@@ -88,33 +88,19 @@ with open("styles.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # ----------------- Top Nav -----------------
-# ---------- Logo in top nav ----------
 st.markdown("""
-<div style="display:flex; align-items:center; justify-content:space-between; padding:10px; background-color:#f8f9fa; border-radius:6px;">
-    <div style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size:28px; font-weight:bold; font-style:italic; color:#f43f5e;">
-        ReviewLab
+<div class="top-nav" style="display:flex; align-items:center; justify-content:space-between; padding:10px; background-color:#f8f9fa;">
+    <div class="logo">
+         ReviewLab
     </div>
+  <div class="navlinks" style="display:flex; gap:20px;">
+    <a href="#asin-analysis">ASIN Analysis</a>
+    <a href="#manual-review">Manual Review</a>
+    <a href="#csv-upload">CSV Upload</a>
+    <a href="#history">History</a>
+  </div>
 </div>
 """, unsafe_allow_html=True)
-
-# ---------- Navigation items ----------
-nav_items = [
-    ("ASIN Analysis", "#asin-analysis"),
-    ("Manual Review", "#manual-review"),
-    ("CSV Upload", "#csv-upload"),
-    ("History", "#history")
-]
-
-# ---------- Mobile sidebar toggle ----------
-st.sidebar.markdown("<h3>Menu</h3>", unsafe_allow_html=True)
-for name, link in nav_items:
-    st.sidebar.markdown(f'<a style="text-decoration:none; color:#e11d48; font-weight:600;" href="{link}">{name}</a><br>', unsafe_allow_html=True)
-
-# ---------- Optional: Desktop inline nav ----------
-cols = st.columns(len(nav_items))
-for col, (name, link) in zip(cols, nav_items):
-    col.markdown(f'<a style="text-decoration:none; color:#e11d48; font-weight:600;" href="{link}">{name}</a>', unsafe_allow_html=True)
-
 
 # ----------------- Hero Section -----------------
 st.markdown("""
@@ -415,17 +401,13 @@ feature_texts = [
     ("Auto Reports & Export", "Generate shareable reports in PDF or CSV for quick insights."),
 ]
 
-# Render feature cards using columns grid
-cols_per_row = 3  # Desktop layout
-for i in range(0, len(feature_texts), cols_per_row):
-    row_cols = st.columns(min(cols_per_row, len(feature_texts) - i))
-    for col, (title, desc) in zip(row_cols, feature_texts[i:i+cols_per_row]):
-        col.markdown(f'''
-        <div class="feature-card">
-            <h3>{title}</h3>
-            <p>{desc}</p>
-        </div>
-        ''', unsafe_allow_html=True)
+for i in range(0, len(feature_texts), 3):
+    # Create a row of 3 columns
+    cols = st.columns(3)
+    for j, (title, desc) in enumerate(feature_texts[i:i+3]):
+        cols[j].markdown(f'<div class="feature-card"><h3>{title}</h3><p>{desc}</p></div>', unsafe_allow_html=True)
+    # Add space after each row
+    st.markdown("<br>", unsafe_allow_html=True)
 
 # ----------------- Connect With Me Section -----------------
 st.markdown(" ")
