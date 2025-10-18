@@ -125,23 +125,41 @@ html, body, [class*="css"]  {
   box-shadow: 0 6px 12px rgba(0,0,0,0.16);
 }
 
+/* Feature cards grid container */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  column-gap: 40px; /* horizontal spacing */
+  row-gap: 20px;    /* vertical spacing */
+  justify-items: stretch;
+  align-items: stretch;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
 /* Feature cards */
 .feature-card {
   background: #fff;
   border: 2px solid #f3f4f6;
   border-radius: 10px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-  padding: 30px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  transition: transform 0.3s, box-shadow 0.3s;
-  height: 100%;
-  color: #111827; /* Default text color for light mode */
+  align-items: flex-start;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  min-height: 220px;
+  color: #111827;
+  box-sizing: border-box;
+  position: relative;  /* prevent overlap bug */
+  z-index: 0;          /* default stacking order */
 }
+
 .feature-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+  transform: translateY(-6px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+  z-index: 5; /* bring hovered card above others */
 }
 
 /* Dark mode styles */
@@ -158,12 +176,31 @@ html, body, [class*="css"]  {
   .feature-card {
     background: #1e293b;
     border-color: #334155;
-    color: #ffffff; /* Make feature text white in dark mode */
+    color: #ffffff;
   }
+}
 
-  .logo {
-    color: #f43f5e;
+/* Responsive behavior: stack cards on smaller screens */
+@media (max-width: 700px) {
+  .feature-grid {
+    grid-template-columns: 1fr; /* single column on small screens */
   }
+}
+                        
+.logo {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 30px; 
+    font-weight: bold; 
+    font-style: italic;
+    color: #f43f5e;   /* light mode color */
+    letter-spacing: 1px;
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+    .logo {
+        color: white;
+    }
 }
   
 /* Hide Streamlit default menu/footer */
@@ -175,9 +212,9 @@ footer[data-testid="stFooter"] {visibility: hidden;}
 # ----------------- Top Nav -----------------
 st.markdown("""
 <div class="top-nav" style="display:flex; align-items:center; justify-content:space-between; padding:10px; background-color:#f8f9fa;">
-  <div class="logo" style="font-size:24px; font-weight:bold; color:#333;">
-    ReviewsLab
-  </div>
+    <div class="logo">
+         ReviewLab
+    </div>
   <div class="navlinks" style="display:flex; gap:20px;">
     <a href="#asin-analysis">ASIN Analysis</a>
     <a href="#manual-review">Manual Review</a>
@@ -478,6 +515,7 @@ with tabs[3]:
 
 # ----------------- Features Grid -----------------
 st.markdown('<h2>Key Features</h2>', unsafe_allow_html=True)
+
 feature_texts = [
     ("AI Sentiment Insights", "Detect emotions and tone across thousands of reviews with advanced NLP."),
     ("Feature Request Detection", "Identify trending customer requests to guide your next product update."),
@@ -485,10 +523,14 @@ feature_texts = [
     ("Trend Tracking", "Monitor changes in sentiment and topics over time with clean visual charts."),
     ("Auto Reports & Export", "Generate shareable reports in PDF or CSV for quick insights."),
 ]
-cols = st.columns(3)
-for i, (title, desc) in enumerate(feature_texts):
-    col = cols[i % 3]
-    col.markdown(f'<div class="feature-card"><h3>{title}</h3><p>{desc}</p></div>', unsafe_allow_html=True)
+
+for i in range(0, len(feature_texts), 3):
+    # Create a row of 3 columns
+    cols = st.columns(3)
+    for j, (title, desc) in enumerate(feature_texts[i:i+3]):
+        cols[j].markdown(f'<div class="feature-card"><h3>{title}</h3><p>{desc}</p></div>', unsafe_allow_html=True)
+    # Add space after each row
+    st.markdown("<br>", unsafe_allow_html=True)
 
 # ----------------- Connect With Me Section -----------------
 st.markdown(" ")
