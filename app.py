@@ -88,10 +88,10 @@ with open("styles.css") as f:
 
 # ----------------- Top Nav & Hero -----------------
 st.markdown("""
-<div class="top-nav"><div class="logo">ReviewLab</div></div>
+<div class="top-nav"><div class="logo">Reviews Lab</div></div>
 <div class="hero">
-  <h1>Turn Amazon reviews into product intelligence</h1>
-  <p>Analyze thousands of reviews in seconds — find trends, sentiment, and opportunities.</p>
+  <h1><em>Know What Your Customers Feel</em></h1>
+  <p>Automatically analyze reviews, track sentiment, and find growth opportunities — fast and easy.</p>
 </div>
 """, unsafe_allow_html=True)
 

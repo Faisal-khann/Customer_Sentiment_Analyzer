@@ -29,7 +29,7 @@ html, body, [class*="css"] {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   font-size: 30px;
   font-weight: bold;
-  font-style: italic;
+  /* font-style: italic; */
   color: #f43f5e;
   letter-spacing: 1px;
   transition: color 0.3s ease;
@@ -115,11 +115,36 @@ html, body, [class*="css"] {
   }
 }
 
-/* Responsive */
+/* =========================
+   Mobile Styles (≤700px)
+========================= */
 @media (max-width: 700px) {
+  .top-nav {
+    padding: 12px 16px;
+  }
+
   .feature-grid {
     grid-template-columns: 1fr;
-    row-gap: 40px;
+    row-gap: 60px;
+    padding: 0 16px;
+  }
+
+  .feature-card {
+    padding: 24px;
+    margin-bottom: 20px; /* extra spacing below cards if needed */
+    /* Disable hover effects on mobile */
+    transform: none !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03) !important;
+    border-color: #f3f4f6 !important;
+    z-index: 0 !important;
+  }
+
+  /* Prevent hover styles from applying */
+  .feature-card:hover {
+    transform: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    border-color: #f3f4f6;
+    z-index: 0;
   }
 }
 
