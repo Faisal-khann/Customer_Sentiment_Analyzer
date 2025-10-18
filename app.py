@@ -88,17 +88,10 @@ with open("styles.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # ----------------- Top Nav -----------------
+# ---------- Logo ----------
 st.markdown("""
-<div class="top-nav" style="display:flex; align-items:center; justify-content:space-between; padding:10px; background-color:#f8f9fa;">
-    <div class="logo">
-         ReviewLab
-    </div>
-  <div class="navlinks" style="display:flex; gap:20px;">
-    <a href="#asin-analysis">ASIN Analysis</a>
-    <a href="#manual-review">Manual Review</a>
-    <a href="#csv-upload">CSV Upload</a>
-    <a href="#history">History</a>
-  </div>
+<div class="top-nav">
+    <div class="logo">ReviewLab</div>
 </div>
 """, unsafe_allow_html=True)
 
