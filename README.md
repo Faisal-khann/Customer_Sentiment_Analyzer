@@ -13,12 +13,13 @@ A web application to analyze customer reviews on Amazon products. This tool leve
 - [Business Problem](#business-problem)
 - [Features](#features)
 - [How It Works](#how-it-works)
-- [Technology Used](#technology-used)
+- [Technologies Used](#technology-used)
 - [Project Structure](#project-structure)
 - [Installation](#installation)
 - [Data Preprocessing](#Preprocessing-&-Feature-Extraction (Optimized with Swifter))
 - [Screenshots](#screenshots)
 - [Future Improvements](#future-improvements)
+- [Authors & Contact](#authour-contacts)
 - [License](#license)
 
 ---
@@ -224,5 +225,35 @@ Notes:
 - Returns a zero vector for empty token lists to avoid errors.
 - Converts each review into a numerical vector suitable for machine learning models.
 - Swifter significantly speeds up vectorization for large datasets.
+
+## Screenshots
+<div>
+  <img width="1815" height="788" alt="Image" src="https://github.com/user-attachments/assets/093b0da3-dd1e-40c9-9987-a659a06696f3" />
+
+<img width="1806" height="493" alt="Image" src="https://github.com/user-attachments/assets/b5219372-7ebd-417e-9fee-4e7befda00ca" />
+
+<img width="1808" height="404" alt="Image" src="https://github.com/user-attachments/assets/fdde688b-b203-4bec-8523-46844e479d19" />
+
+<img width="1803" height="405" alt="Image" src="https://github.com/user-attachments/assets/0b0b63c5-e19f-4b79-a1cb-e8c6972dd4b0" />
+
+<img width="1812" height="811" alt="Image" src="https://github.com/user-attachments/assets/4f589ecf-4c51-4d72-be4c-8e4a04da4ed3" />
+
+<img width="1809" height="598" alt="Image" src="https://github.com/user-attachments/assets/59c31bef-28c5-4563-9150-143355e2474e" />
+</div>
+
+## Author & Contact
+
+**Faisal Khan**  
+*Data Analyst | Aspiring Data Scientist*
+
+For any questions, collaboration opportunities, or project-related inquiries, feel free to reach out:
+
+[![Portfolio](https://img.shields.io/badge/Portfolio-Visit-orange?style=for-the-badge&logo=google-chrome&logoColor=white)](https://personal-portfolio-alpha-lake.vercel.app/)<br>
+[![Email](https://img.shields.io/badge/Email-Faisal%20Khan-blue?style=for-the-badge&logo=gmail&logoColor=white)](mailto:thisside.faisalkhan@example.com)<br>
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Faisal%20Khan-blue?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/faisal-khan23)
+
+---
+> Made with ❤️ using Jupyter Notebook, Python, nlp & Machine learning.
+
 
 
